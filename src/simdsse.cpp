@@ -87,9 +87,9 @@ namespace asr {
 	}
 
 	//can handle unalligned data
-	double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const int *spvec_idxs, size_t sz) {
+	double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
 		const int fourPacks = SSE_FLOAT_PACKED;
-		const size_t tsz = sz - sz % SSE_FLOAT_PACKED;
+		const size_t tsz = sz - sz % fourPacks;
 		__m128d acc2d = _mm_setzero_pd();
 		alignas(simdsse::allignment_req()) float tmp[fourPacks];
 		for (size_t i(0); i < tsz; i += fourPacks) {
@@ -109,6 +109,29 @@ namespace asr {
 		}
 		return sum;
 	}
+
+	//can handle unalligned data
+	double simdsse::sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
+		const int fourPacks = SSE_DOUBLE_PACKED;
+		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED;
+		__m128d acc2d = _mm_setzero_pd();
+		alignas(simdsse::allignment_req()) double tmp[fourPacks];
+		for (size_t i(0); i < tsz; i += fourPacks) {
+			//load to tmp
+			tmp[0] = spvec_data[spvec_idxs[i]];
+			tmp[1] = spvec_data[spvec_idxs[i+1]];
+			__m128d spvec = _mm_load_pd(tmp);
+			const __m128d dvec  = _mm_loadu_pd(&dense_vec[i]); 
+			spvec = _mm_mul_pd(spvec, dvec); 
+			acc2d = _mm_add_pd(acc2d, spvec);
+		}
+		double sum = sum_m128d(acc2d);
+		for (size_t i(tsz > 0 ? tsz : 0); i < sz; i++) {
+			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
+		}
+		return sum;
+	}
+
 
 	//assumed allignment
 	double simdsse::dot_vec(const float *v1, const float *v2, const size_t sz) {
@@ -165,8 +188,8 @@ namespace asr {
 
 		{
 			size_t sz = 173;
-			__declspec(align(simdsse::allignment_req()))  float *v1 = new float[sz];
-			__declspec(align(simdsse::allignment_req()))  float *v2 = new float[sz];
+			alignas(simdsse::allignment_req())  float *v1 = new float[sz];
+			alignas(simdsse::allignment_req())  float *v2 = new float[sz];
 			double sum(0);
 			for (size_t i(0); i < sz; i++) {
 				v1[i] = float(i * 0.01);
@@ -182,7 +205,7 @@ namespace asr {
 			size_t sz = 7;
 			float  *dens= new float[sz];
 			double *sp_data = new double[sz];
-			int    *sp_idx  = new int[sz];
+			unsigned int    *sp_idx  = new unsigned [sz];
 
 			double sum(0);
 			for (size_t i(0); i < sz; i++) {
