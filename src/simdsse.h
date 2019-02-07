@@ -13,7 +13,7 @@ namespace asr {
 	public:
 
 		//returns true if sse supported on the device
-		static bool is_sse_supported();
+		static bool is_supported();
 		static constexpr int allignment_req() { return SIMD_SSE_ALLIGNMENT; }
 
 		static const int SSE_WIDTH = 128;
@@ -42,7 +42,11 @@ namespace asr {
 
 		static bool self_test();
 
-	protected:
+		//debug stats
+		static long int simdentry;
+		static long int simdentry_parallel;
+		static long double sum_row_sz;
 
+	protected:
 	};
 };

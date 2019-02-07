@@ -8,24 +8,28 @@
 //implementatin
 //sse2 instructions
 #include<immintrin.h>
-//#include<emmintrin.h>
+
 
 #include <assert.h>
 #include <math.h>
 
 namespace asr {
-	bool simdsse::is_sse_supported() {
+	long int simdsse::simdentry = 0;
+	long int simdsse::simdentry_parallel = 0;
+	long double simdsse::sum_row_sz = 0.0;
+
+	bool simdsse::is_supported() {
 		//supposed to look into cpuid
 		return true;
 	}
 
-	double sum_m128d(const __m128d &v) {
+    inline 	double sum_m128d(const __m128d &v) {
 		double tmp[2];
 		_mm_store_pd(tmp, v);
 		return tmp[0] + tmp[1];
 	}
 
-	__m128d halfsum_m128(const __m128 &v) {
+	inline __m128d halfsum_m128(const __m128 &v) {
 		const __m128 t   = _mm_add_ps(v, _mm_movehl_ps(v, v));
 		//const __m128 ss = _mm_add_ss(t, _mm_shuffle_ps(t, t, 1));
 		const __m128d r = _mm_cvtps_pd(t);
@@ -83,7 +87,7 @@ namespace asr {
 	void simdsse::mul_vec(const float *v1, float *v2, const size_t sz) {
 		const size_t tsz = sz - sz % SSE_FLOAT_PACKED;
 		for (size_t i(0); i < tsz; i += SSE_FLOAT_PACKED) mul_quarks(v1 + i, v2 + i);
-		for (size_t i(tsz > 0 ? tsz : 0); i < sz; i++) v2[i] *= v1[i];
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) v2[i] *= v1[i];
 	}
 
 	//can handle unalligned data
@@ -104,7 +108,7 @@ namespace asr {
 			acc2d = _mm_add_pd(acc2d, halfsum_m128(spvec));
 		}
 		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz > 0 ? tsz : 0); i < sz; i++) {
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
 			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
 		}
 		return sum;
@@ -116,6 +120,11 @@ namespace asr {
 		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED;
 		__m128d acc2d = _mm_setzero_pd();
 		alignas(simdsse::allignment_req()) double tmp[fourPacks];
+
+/*simdentry++;
+sum_row_sz += sz;
+if (tsz > 0) simdentry_parallel++;
+*/
 		for (size_t i(0); i < tsz; i += fourPacks) {
 			//load to tmp
 			tmp[0] = spvec_data[spvec_idxs[i]];
@@ -126,7 +135,7 @@ namespace asr {
 			acc2d = _mm_add_pd(acc2d, spvec);
 		}
 		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz > 0 ? tsz : 0); i < sz; i++) {
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
 			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
 		}
 		return sum;
@@ -144,7 +153,7 @@ namespace asr {
 			acc2d = _mm_add_pd(acc2d, halfsum_m128(sum4));
 		}
 		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz > 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
 		return sum;
 	}
 
@@ -176,7 +185,7 @@ namespace asr {
 		}
 
 		{
-			assert(is_sse_supported());
+			assert(is_supported());
 		}
 
 		{
