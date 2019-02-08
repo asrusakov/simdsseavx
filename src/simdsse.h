@@ -49,4 +49,38 @@ namespace asr {
 
 	protected:
 	};
+}
+
+//sse2 instructions
+//#include <immintrin.h>
+//#include <emmintrin.h>
+//sse3
+#include <pmmintrin.h>
+namespace asr {
+	//can handle unalligned data
+	inline double simdsse::sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
+		const unsigned int fourPacks = SSE_DOUBLE_PACKED;
+		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED;
+		__m128d acc2d = _mm_setzero_pd();
+		auto pidx = spvec_idxs;
+		size_t i(0);
+		for (; i < tsz; i += fourPacks) {
+			//very slow
+			__m128d spvec = _mm_set_pd (spvec_data[*(pidx+1)], spvec_data[*pidx]);
+			pidx++;
+			pidx++;			
+			const __m128d dvec  = _mm_loadu_pd(&dense_vec[i]); 
+			acc2d = _mm_add_pd(acc2d, _mm_mul_pd(spvec, dvec));
+		}
+		acc2d =  _mm_hadd_pd(acc2d,acc2d);
+		double sum = _mm_cvtsd_f64(acc2d);		
+		//double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+				
+		for ( ; i < sz; i++) {
+			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
+		}		
+		return sum;
+	}
+
+
 };

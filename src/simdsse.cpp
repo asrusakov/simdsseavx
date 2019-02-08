@@ -114,33 +114,6 @@ namespace asr {
 		return sum;
 	}
 
-	//can handle unalligned data
-	double simdsse::sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
-		const int fourPacks = SSE_DOUBLE_PACKED;
-		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED;
-		__m128d acc2d = _mm_setzero_pd();
-		alignas(simdsse::allignment_req()) double tmp[fourPacks];
-
-/*simdentry++;
-sum_row_sz += sz;
-if (tsz > 0) simdentry_parallel++;
-*/
-		for (size_t i(0); i < tsz; i += fourPacks) {
-			//load to tmp
-			tmp[0] = spvec_data[spvec_idxs[i]];
-			tmp[1] = spvec_data[spvec_idxs[i+1]];
-			__m128d spvec = _mm_load_pd(tmp);
-			const __m128d dvec  = _mm_loadu_pd(&dense_vec[i]); 
-			spvec = _mm_mul_pd(spvec, dvec); 
-			acc2d = _mm_add_pd(acc2d, spvec);
-		}
-		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
-			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
-		}
-		return sum;
-	}
-
 
 	//assumed allignment
 	double simdsse::dot_vec(const float *v1, const float *v2, const size_t sz) {
