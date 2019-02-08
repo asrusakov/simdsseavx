@@ -67,8 +67,9 @@ namespace asr {
 		for (; i < tsz; i += fourPacks) {
 			//very slow
 			__m128d spvec = _mm_set_pd (spvec_data[*(pidx+1)], spvec_data[*pidx]);
-			pidx++;
-			pidx++;			
+			//__m128d spvec = _mm_set_pd (spvec_data[*(pidx)], spvec_data[*pidx+1]);
+			pidx+=fourPacks;
+			
 			const __m128d dvec  = _mm_loadu_pd(&dense_vec[i]); 
 			acc2d = _mm_add_pd(acc2d, _mm_mul_pd(spvec, dvec));
 		}
@@ -77,7 +78,7 @@ namespace asr {
 		//double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
 				
 		for ( ; i < sz; i++) {
-			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
+			sum += spvec_data[*pidx++] * dense_vec[i];
 		}		
 		return sum;
 	}
