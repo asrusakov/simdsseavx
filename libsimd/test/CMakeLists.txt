@@ -6,5 +6,5 @@ set (LIBS  libsimd)
 
 add_executable(simdtest simd_test.cpp) 
 
-target_link_libraries(simdtest ${START_GROUP}  ${LIBS}  ${END_GROUP}  ${EXTERNAL_LIBS}) 
+target_link_libraries(simdtest ${START_GROUP}  ${LIBS}  ${END_GROUP}  ${EXTERNAL_LIBS} ${EXTERNAL_UNIT_TEST_LIBS}) 
 
