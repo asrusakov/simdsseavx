@@ -1,0 +1,137 @@
+##########################################################
+#source
+file(GLOB SRC  "*.h" "*.cpp" "*.c")
+
+##########################################################
+include_directories("../../")
+set(ARCHIVE_OUTPUT_PATH ../../output/obj)
+set(EXECUTABLE_OUTPUT_PATH ../../output/bin)
+
+#verbosity
+set (CMAKE_VERBOSE_MAKEFILE ON)
+
+##########################################################
+# detect release and debug configuration
+option (DEBUG "debug mode of the build" ON) 
+#message (STATUS " debug mode is ${DEBUG} ")
+
+##########################################################
+#access to boost
+set(Boost_USE_STATIC_LIBS    ON) 
+set(Boost_USE_MULTITHREADED  ON)  
+set(Boost_USE_STATIC_RUNTIME ON) 
+
+#this command should have work but does not i don't know at the moment why  
+# so instead of one command we set a bunch of variables
+#find_package(Boost 1.54.0 COMPONENTS system filesystem thread test log REQUIRED )
+
+set (Boost_DEBUG true)
+set (BOOST_ROOT  ${CMAKE_SOURCE_DIR}/3rd/boost/boost_1_62_0 )
+set (Boost_INCLUDE_DIRS ${BOOST_ROOT}/)
+set (Boost_LIBRARY_DIRS ${BOOST_ROOT}/stage/lib)
+set (Boost_LIBRARY_SUFFIX ".a")
+
+if ( WIN32 ) 
+  set (Boost_LIBRARY_DIRS ${BOOST_ROOT}/stage/win)
+#  set (Boost_LIBRARY_SUFFIX "-vc140-mt-1_62.lib")
+  set (Boost_LIBRARY_SUFFIX "-vc120-mt-1_62.lib")
+  if (DEBUG)
+    set (Boost_LIBRARY_SUFFIX "-vc120-mt-gd-1_62.lib")
+  endif()
+endif()
+
+set (Boost_COMPONENTS filesystem log thread system regex program_options)
+foreach(libboost ${Boost_COMPONENTS})
+  set (Boost_LIBRARIES ${Boost_LIBRARIES} ${Boost_LIBRARY_DIRS}/libboost_${libboost}${Boost_LIBRARY_SUFFIX} )
+endforeach()
+
+#we don't need unit test in the release build
+set (Boost_UNIT_TEST_COMPONENTS unit_test_framework)
+foreach(libboost ${Boost_UNIT_TEST_COMPONENTS})
+  set (Boost_UNIT_TEST_LIBRARIES ${Boost_UNIT_TEST_LIBRARIES} ${Boost_LIBRARY_DIRS}/libboost_${libboost}${Boost_LIBRARY_SUFFIX} )
+endforeach()
+
+set (Boost_Python_COMPONENTS python python3)
+foreach(libboost ${Boost_Python_COMPONENTS})
+  set (Boost_PYTHON_LIBRARIES ${Boost_PYTHON_LIBRARIES} ${Boost_LIBRARY_DIRS}/libboost_${libboost}${Boost_LIBRARY_SUFFIX} )
+endforeach()
+
+
+#message ("Boost root ${BOOST_ROOT} ")
+#message ("Boost  ${Boost_INCLUDE_DIRS}")
+#message ("Boost  ${Boost_LIBRARY_DIRS}")
+#message ("Boost  ${Boost_LIBRARIES}")
+
+#if(Boost_FOUND)
+#  include_directories(SYSTEM ${Boost_INCLUDE_DIRS}) 
+#else()    
+#  message ("Boost is not found")
+#endif()
+
+include_directories(${Boost_INCLUDE_DIRS}) 
+
+#message(" WIN32 ${WIN32} are we UNIX ${UNIX}")
+#########################################################
+# file external libs
+#rt lib
+if (NOT WIN32) 
+  SET(EXTERNAL_LIBS ${EXTERNAL_LIBS} rt)
+endif()
+
+SET(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${Boost_LIBRARIES})
+SET(EXTERNAL_UNIT_TEST_LIBS ${EXTERNAL_UNIT_TEST_LIBS} ${Boost_UNIT_TEST_LIBRARIES})
+SET(EXTERNAL_PYTHON_LIBS ${EXTERNAL_UNIT_TEST_LIBS} ${Boost_PYTHON_LIBRARIES})
+
+
+FIND_PACKAGE ( Threads REQUIRED )
+SET(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
+
+
+##########################################################
+#output
+SET(outdir "../../output")
+set(ARCHIVE_OUTPUT_PATH ${outdir}/obj)
+set(LIBRARY_OUTPUT_PATH ${outdir}/lib)
+set(CMAKE_BUILD_FILES_DIRECTORY ${outdir}/build})
+set(CMAKE_BUILD_DIRECTORY ${outdir}/build)
+
+##########################################################
+#compilation flags
+if ( UNIX )
+  if ( DEBUG ) 
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -Wno-unknown-pragmas -O0 -fPIC -Wno-deprecated-declarations")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unknown-pragmas -O3 -fPIC -Wno-deprecated-declarations")
+    option(STRIP "force unstriped release version" ON) 
+    if ( STRIP ) 
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s ")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")
+    endif()  
+  endif()  
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif ( WIN32 ) 
+  if ( DEBUG ) 
+  else()
+  endif()  
+ 
+  if(MSVC)
+     #void annoying vs warning
+     add_definitions("/D\"_SCL_SECURE_NO_WARNINGS\"")
+     add_definitions("/D\"_CRT_SECURE_NO_WARNINGS\"")
+  endif()
+endif()
+
+######################################################
+#linkage
+
+if (UNIX) 
+  set (START_GROUP "-Wl,--start-group")
+  set (END_GROUP "-Wl,--end-group")
+else()  
+  set (START_GROUP "")
+  set (END_GROUP "")
+endif()
+
+
+

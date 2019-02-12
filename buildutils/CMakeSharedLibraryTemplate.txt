@@ -1,0 +1,16 @@
+include (../../buildutils/CMakeUtils.txt)
+
+foreach(file_path ${SRC})
+     GET_FILENAME_COMPONENT(TARGET ${file_path} PATH)
+     GET_FILENAME_COMPONENT(TARGET ${TARGET} PATH)
+     GET_FILENAME_COMPONENT(TARGET ${TARGET} NAME)
+endforeach()
+	    
+
+ADD_LIBRARY(${TARGET} SHARED ${SRC})
+set_target_properties( ${TARGET} PROPERTIES PREFIX "" )
+
+
+
+
+

@@ -1,0 +1,7 @@
+include (../../buildutils/CMakeUtils.txt)
+
+option (USE_PURIFY "Use Rational Purify for runtime error checks" OFF)
+IF (USE_PURIFY)
+	SET(CMAKE_CXX_LINK_EXECUTABLE "purify <CMAKE_CXX_COMPILER> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <FLAGS> <OBJECTS>  -o <TARGET> <LINK_LIBRARIES>")
+ENDIF (USE_PURIFY)
+

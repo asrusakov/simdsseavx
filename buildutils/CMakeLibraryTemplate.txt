@@ -1,0 +1,13 @@
+include (../../buildutils/CMakeUtils.txt)
+
+foreach(file_path ${SRC})
+     GET_FILENAME_COMPONENT(TARGET ${file_path} PATH)
+     GET_FILENAME_COMPONENT(TARGET ${TARGET} PATH)
+     GET_FILENAME_COMPONENT(TARGET ${TARGET} NAME)
+#     message("d ${dir_path}  , prj ${prj}")
+endforeach()	    
+#message("t ${TARGET}")
+
+ADD_LIBRARY(${TARGET} ${SRC})
+
+
