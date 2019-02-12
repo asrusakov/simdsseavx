@@ -51,6 +51,7 @@ namespace asr {
 	};
 }
 
+#ifdef __SSE2__
 //sse2 instructions
 //#include <immintrin.h>
 //#include <emmintrin.h>
@@ -86,3 +87,4 @@ namespace asr {
 
 
 };
+#endif

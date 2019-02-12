@@ -3,6 +3,8 @@
 ** utils for running iterative matrix solution over SSE.
 **
 */
+#ifdef __SSE2__
+
 #include "simdsse.h"
 
 //implementatin
@@ -206,3 +208,5 @@ namespace asr {
 	}
 
 }
+
+#endif

@@ -32,7 +32,7 @@ namespace asr {
 	};
 };
 
-
+#ifdef __AVX__
 //avx instructions
 #include <immintrin.h>
 
@@ -77,3 +77,5 @@ namespace asr {
 		return sum;
 	}
 }
+
+#endif

@@ -27,6 +27,8 @@ namespace asr
 // Uses the __cpuid intrinsic to get information about
 // CPU extended instruction set support.
 
+//#pragma GCC diagnostic ignored "-Wsign-compare"
+
 //wrapper for windows __cpuid
 void cpuid(int *cpuInfo, int function_id)
 {
@@ -148,6 +150,14 @@ class InstructionSet_Internal
     std::vector<std::array<int, 4>> extdata_;
 };
 
+InstructionSet::InstructionSet() {
+    CPU_Rep = new InstructionSet_Internal();
+}
+
+InstructionSet::~InstructionSet() {
+    delete  CPU_Rep, CPU_Rep = 0;
+}
+
 // getters
 const char *InstructionSet::Vendor(void) { return CPU_Rep->vendor_.c_str(); }
 const char *InstructionSet::Brand(void) { return CPU_Rep->brand_.c_str(); }
@@ -192,7 +202,7 @@ bool InstructionSet::RDSEED(void) { return CPU_Rep->f_7_EBX_[18]; }
 bool InstructionSet::ADX(void) { return CPU_Rep->f_7_EBX_[19]; }
 bool InstructionSet::AVX512PF(void) { return CPU_Rep->f_7_EBX_[26]; }
 bool InstructionSet::AVX512ER(void) { return CPU_Rep->f_7_EBX_[27]; }
-bool AVX512CD(void) { return CPU_Rep->f_7_EBX_[28]; }
+bool InstructionSet::AVX512CD(void) { return CPU_Rep->f_7_EBX_[28]; }
 bool InstructionSet::SHA(void) { return CPU_Rep->f_7_EBX_[29]; }
 
 bool InstructionSet::PREFETCHWT1(void) { return CPU_Rep->f_7_ECX_[0]; }
