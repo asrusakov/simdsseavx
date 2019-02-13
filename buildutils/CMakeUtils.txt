@@ -88,6 +88,13 @@ SET(EXTERNAL_LIBS ${EXTERNAL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 
 ##########################################################
+#hayai unit micro bencmarking
+##########################################################
+set (HAYAI_ROOT ${CMAKE_SOURCE_DIR}/3rd/hayai )
+set (HAYAI_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/3rd/ )
+include_directories(${HAYAI_INCLUDE_DIRS}) 
+
+##########################################################
 #output
 SET(outdir "../../output")
 set(ARCHIVE_OUTPUT_PATH ${outdir}/obj)
