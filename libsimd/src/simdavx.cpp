@@ -4,15 +4,22 @@
 **
 */
 #include "simdavx.h"
-
 //implementatin
 //sse2 instructions
-#include <immintrin.h>
+#include "simdcpuid.h"
 
 namespace asr {
 	bool simdavx::is_supported() {
-		//supposed to look into cpuid
-		return true;
+#ifndef __AVX__ 
+		return false;
+#else 	
+		InstructionSet isa;
+#ifdef __AVX2__ 		
+		return isa.AVX2();			
+#else  		
+		return isa.AVX();			
+#endif	
+#endif	
 	}
 
 }

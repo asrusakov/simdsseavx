@@ -5,6 +5,7 @@
 */
 #pragma once
 #include  <stddef.h>
+#include "simdbase.h"
 
 namespace asr {
 	//wrapper above sse instruction.
@@ -16,21 +17,22 @@ namespace asr {
 		static bool is_supported();
 		static constexpr int allignment_req() { return SIMD_AVX_ALLIGNMENT; }
 
+		//harware requirement
+		static const int SIMD_AVX_ALLIGNMENT = 32; 
+
+		static double sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz);
+		static double dot_vec(const double *v1, const double *v2, const size_t sz);
+		static void   sum(const double * v1, const double * v2, double * v, const size_t sz);
+		static void   sub(const double *v1, const double *v2, double * v, const size_t sz);
+
+	protected:
 		static const int AVX_WIDTH = 256;
 		static const int AVX_FLOAT_PACKED  = 8;
 		static const int AVX_INT_PACKED    = 8;
 		static const int AVX_DOUBLE_PACKED = 4;
-
-		//harware requirement
-		static const int SIMD_AVX_ALLIGNMENT = 16; 
-
-		static double sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz);
-
-//		static bool self_test();
-
-	protected:
 	};
 };
+
 
 #ifdef __AVX__
 //avx instructions
@@ -39,9 +41,9 @@ namespace asr {
 namespace asr {
 
 	//can handle unalligned data
-	inline double simdavx::sparse_vec_dense_vector_dot(const double * __restrict__ dense_vec, 
-												const double *__restrict__ spvec_data,
-												const unsigned int *__restrict__ spvec_idxs, size_t sz) {
+	inline double simdavx::sparse_vec_dense_vector_dot(const double * RESTRICT dense_vec,
+												const double *RESTRICT spvec_data,
+												const unsigned int *RESTRICT spvec_idxs, size_t sz) {
 		const int fourPacks = AVX_DOUBLE_PACKED;
 		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
 		__m256d acc4d = _mm256_setzero_pd();
@@ -60,22 +62,95 @@ namespace asr {
 										  spvec_data[idx[1]],
 										  spvec_data[idx[0]]);
 
-			const __m256d dvec  = _mm256_load_pd(&dense_vec[i]);             
+			const __m256d dvec  = _mm256_load_pd(&dense_vec[i]);     
+#ifdef __AVX2__
+			//for avx2 should be:
+			// FMA: rowsum += x_ * v_
+			acc4d = _mm256_fmadd_pd(spvec, dvec, acc4d);
+#else
 			spvec = _mm256_mul_pd(spvec, dvec); 
 			acc4d = _mm256_add_pd(acc4d, spvec);
-
-            //for avx2 should be:
-            // FMA: rowsum += x_ * v_
-            //acc4d = _mm256_fmadd_pd(spvec_, dvec_, acc4d);
+#endif
 		}        
         acc4d = _mm256_hadd_pd(acc4d, acc4d);
         double sum = ((double*)&acc4d)[0] + ((double*)&acc4d)[2];
-
+		_mm256_zeroupper();
 		for ( ; i < sz; i++) {
 			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
 		}
 		return sum;
 	}
-}
 
+	inline double simdavx::dot_vec(const double *RESTRICT v1, const double *RESTRICT v2, const size_t sz) {
+		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
+		__m256d acc4d = _mm256_setzero_pd();
+		size_t i(0);
+		for (; i < tsz; i += AVX_DOUBLE_PACKED) {
+			//strange but not alligned access to unalligned data does not crash and works fine. why?
+			__m256d v1vec = _mm256_loadu_pd(v1);
+			const __m256d v2vec = _mm256_loadu_pd(v2);
+
+			//			const __m256d v1vec = _mm256_loadu_pd(v1);
+			//			const __m256d v2vec = _mm256_loadu_pd(v2);
+
+			v1 += AVX_DOUBLE_PACKED;
+			v2 += AVX_DOUBLE_PACKED;
+#ifdef __AVX2__
+			//for avx2 should be:
+			// FMA: rowsum += x_ * v_
+			acc4d = _mm256_fmadd_pd(v1vec, v2vec, acc4d);
+#else
+			v1vec = _mm256_mul_pd(v1vec, v2vec);
+			acc4d = _mm256_add_pd(acc4d, v1vec);
+#endif
+		}
+		acc4d = _mm256_hadd_pd(acc4d, acc4d);
+		double sum = ((double*)&acc4d)[0] + ((double*)&acc4d)[2];
+		_mm256_zeroupper();
+		for (; i < sz; i++) sum += *v1++ * *v2++;
+		return sum;
+	}
+
+	//v = v1 + v2
+	//runtime: native sum: 22s, avx sum with storage 14, sum with stream to memory 29
+	inline void simdavx::sum(const double *RESTRICT v1, const double *RESTRICT v2, double *RESTRICT v,  const size_t sz) {
+		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
+		size_t i(0);
+	
+		for (; i < tsz; i += AVX_DOUBLE_PACKED) {
+			//strange but not alligned access to unalligned data does not crash and works fine. why?
+			const __m256d v1vec = _mm256_loadu_pd(v1);
+			const __m256d v2vec = _mm256_loadu_pd(v2);
+			v1 += AVX_DOUBLE_PACKED;
+			v2 += AVX_DOUBLE_PACKED;
+			__m256d s = _mm256_add_pd(v1vec, v2vec);
+			_mm256_storeu_pd(v, s);
+//			_mm256_stream_pd(v, s);
+			v += AVX_DOUBLE_PACKED;
+		}
+		_mm256_zeroupper();
+		for ( ; i < sz; i++) *v++ = *v1++ * *v2++;
+	}
+
+	//v = v1 + v2
+	//runtime: native sum: 22s, avx sum with storage 14, sum with stream to memory 19
+	inline void simdavx::sub(const double *RESTRICT v1, const double *RESTRICT v2, double *RESTRICT v, const size_t sz) {
+		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
+		size_t i(0);
+
+		for (; i < tsz; i += AVX_DOUBLE_PACKED) {
+			//strange but not alligned access to unalligned data does not crash and works fine. why?
+			const __m256d v1vec = _mm256_loadu_pd(v1);
+			const __m256d v2vec = _mm256_loadu_pd(v2);
+			v1 += AVX_DOUBLE_PACKED;
+			v2 += AVX_DOUBLE_PACKED;
+			__m256d s = _mm256_sub_pd(v1vec, v2vec);
+			_mm256_storeu_pd(v, s);
+			//			_mm256_stream_pd(v, s);
+			v += AVX_DOUBLE_PACKED;
+		}
+		_mm256_zeroupper();
+		for (; i < sz; i++) *v++ = *v1++ * *v2++;
+	}
+}
 #endif

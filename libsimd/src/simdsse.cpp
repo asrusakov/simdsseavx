@@ -3,28 +3,22 @@
 ** utils for running iterative matrix solution over SSE.
 **
 */
-#ifdef __SSE2__
-
+//implementatin
+#include "simdcpuid.h"
 #include "simdsse.h"
 
-//implementatin
-//sse2 instructions
-#include<immintrin.h>
-
-
-#include <assert.h>
-#include <math.h>
-
 namespace asr {
-	long int simdsse::simdentry = 0;
-	long int simdsse::simdentry_parallel = 0;
-	long double simdsse::sum_row_sz = 0.0;
 
 	bool simdsse::is_supported() {
-		//supposed to look into cpuid
-		return true;
+#ifndef __SSE2__ 
+		return false;
+#else 	
+		InstructionSet isa;
+		return isa.SSE2();			
+#endif				
 	}
 
+#if 0
     inline 	double sum_m128d(const __m128d &v) {
 		double tmp[2];
 		_mm_store_pd(tmp, v);
@@ -47,7 +41,7 @@ namespace asr {
 		return sum;
 	}
 
-	void simdsse::mul_quarks(const float *v1, float *v2) {
+	void mul_quarks(const float *v1, float *v2) {
 		__m128 s1 = _mm_load_ps(v1);
 		__m128 s2 = _mm_load_ps(v2);
 		__m128 s3 = _mm_mul_ps(s1, s2);
@@ -84,36 +78,6 @@ namespace asr {
 		d1 = _mm_add_ps(d1, d3);
 
 		return d1;
-	}
-
-	void simdsse::mul_vec(const float *v1, float *v2, const size_t sz) {
-		const size_t tsz = sz - sz % SSE_FLOAT_PACKED;
-		for (size_t i(0); i < tsz; i += SSE_FLOAT_PACKED) mul_quarks(v1 + i, v2 + i);
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) v2[i] *= v1[i];
-	}
-
-	//can handle unalligned data
-	double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
-		const int fourPacks = SSE_FLOAT_PACKED;
-		const size_t tsz = sz - sz % fourPacks;
-		__m128d acc2d = _mm_setzero_pd();
-		alignas(simdsse::allignment_req()) float tmp[fourPacks];
-		for (size_t i(0); i < tsz; i += fourPacks) {
-			//load to tmp
-			tmp[0] = float(spvec_data[spvec_idxs[i]]);
-			tmp[1] = float(spvec_data[spvec_idxs[i+1]]);
-			tmp[2] = float(spvec_data[spvec_idxs[i+2]]);
-			tmp[3] = float(spvec_data[spvec_idxs[i+3]]);
-			__m128 spvec = _mm_load_ps(tmp);
-			const __m128 dvec  = _mm_loadu_ps(&dense_vec[i]); 
-			spvec = _mm_mul_ps(spvec, dvec); 
-			acc2d = _mm_add_pd(acc2d, halfsum_m128(spvec));
-		}
-		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
-			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
-		}
-		return sum;
 	}
 
 
@@ -206,7 +170,6 @@ namespace asr {
 
 		return true;
 	}
+#endif	
 
 }
-
-#endif
