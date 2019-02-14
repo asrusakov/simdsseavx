@@ -16,8 +16,7 @@
 using namespace std;
 using namespace asr;
 
-template <typename T> void simple_check() {
-	size_t sz = 3;
+template <typename T> void simple_check(size_t sz) {
 	alignas(simdsse::allignment_req())  T *v1 = new T[sz];
 	alignas(simdsse::allignment_req())  T *v2 = new T[sz];
     T *v3 = new T[sz];
@@ -57,7 +56,10 @@ BOOST_AUTO_TEST_CASE(dot_sum_sub_vec_float) {
 
 
 BOOST_AUTO_TEST_CASE(dot_sum_sub_vec_double) {
-    simple_check<double>();
+    simple_check<double>(3);
+    simple_check<double>(1);
+    simple_check<double>(173);
+    simple_check<double>(17300);
 }
 
 BOOST_AUTO_TEST_CASE(sparse_vec)
