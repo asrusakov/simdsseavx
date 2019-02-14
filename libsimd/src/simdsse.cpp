@@ -80,23 +80,6 @@ namespace asr {
 		return d1;
 	}
 
-
-	//assumed allignment
-	double simdsse::dot_vec(const float *v1, const float *v2, const size_t sz) {
-		const int fourPacks = SSE_FLOAT_PACKED * 4;
-		const size_t tsz = sz - sz % fourPacks;
-		__m128d acc2d = _mm_setzero_pd();
-		for (size_t i(0); i < tsz; i += fourPacks) {
-			__m128 sum4 = dot_4quarks(v1 + i, v2 + i);
-			//we may continue summing of quarks but i am afraid we will loose ortogonality
-			acc2d = _mm_add_pd(acc2d, halfsum_m128(sum4));
-		}
-		double sum = sum_m128d(acc2d);
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
-		return sum;
-	}
-
-
 	template <typename T> void CHECK_CLOSE(T a, T b) {
 		const double eps = 1e-6;
 		if (fabs(a - b) > fabs(eps*(a+b)) + eps) 

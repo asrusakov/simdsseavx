@@ -4,12 +4,82 @@
 
 #include <iostream>
 #include "libsimd/src/simdcpuid.h"
+#include "libsimd/src/simdavx.h"
+#include "libsimd/src/simdsse.h"
+#include "hayai/src/hayai.hpp"
+
 
 #define BOOST_TEST_MODULE simdtest
 #include <boost/test/unit_test.hpp>
+#include "libtestutils/src/tutils.h"
 
 using namespace std;
 using namespace asr;
+
+template <typename T> void simple_check() {
+	size_t sz = 3;
+	alignas(simdsse::allignment_req())  T *v1 = new T[sz];
+	alignas(simdsse::allignment_req())  T *v2 = new T[sz];
+    T *v3 = new T[sz];
+    T *v4 = new T[sz];
+    T *v3g = new T[sz];
+    T *v4g = new T[sz];
+
+	double sum(0);
+	for (size_t i(0); i < sz; i++) {
+		v1[i] = T(i * 0.01);
+		v2[i] = T((sz - i) * 1e8);
+        sum += v1[i] * v2[i];
+		v3g[i] = v1[i] + v2[i];
+        v4g[i] = v1[i] - v2[i];
+	}
+	double res = simdsse::dot_vec(v1, v2, sz);
+	CHECK_CLOSE(res, sum);
+	simdsse::sum(v1, v2, v3, sz);
+    CHECK_CLOSE(v3, v3g, sz);
+    simdsse::sub(v1, v2, v4, sz);
+    CHECK_CLOSE(v4, v4g, sz);	
+
+    delete[] v1;
+    delete[] v2;
+    delete[] v3;
+    delete[] v4;
+    delete[] v3g;
+    delete[] v4g;
+}
+
+
+/*
+BOOST_AUTO_TEST_CASE(dot_sum_sub_vec_float) {
+    simple_check<float>();
+}
+*/
+
+
+BOOST_AUTO_TEST_CASE(dot_sum_sub_vec_double) {
+    simple_check<double>();
+}
+
+BOOST_AUTO_TEST_CASE(sparse_vec)
+{
+    size_t sz = 7;
+    float *dens = new float[sz];
+    double *sp_data = new double[sz];
+    unsigned int *sp_idx = new unsigned[sz];
+
+    double sum(0);
+    for (size_t i(0); i < sz; i++)
+    {
+        dens[i] = float(i * 0.01);
+        sp_data[i] = float((sz - i) * 1e8);
+        sp_idx[i] = i;
+        sum += dens[i] * sp_data[i];
+    }
+
+    double res = simdsse::sparse_vec_dense_vector_dot(dens, sp_data, sp_idx, sz);
+    CHECK_CLOSE(res, sum);
+}
+
 
 BOOST_AUTO_TEST_CASE(cpuid) {
 auto& outstream = std::cout;

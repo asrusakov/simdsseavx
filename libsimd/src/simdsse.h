@@ -31,10 +31,10 @@ namespace asr {
 		static void mul_vec(const double *v1, double *v2, const size_t sz);
 		//scalar product of aligned vectors of size sz
 		static double dot_vec(const float *v1, const float *v2, const size_t sz);
+		static double dot_vec(const double *v1, const double *v2, const size_t sz);
 
-
-        void sum(const double *RESTRICT v1, const double *RESTRICT v2, double *RESTRICT v,  const size_t sz) ;
-		void sub(const double *RESTRICT v1, const double *RESTRICT v2, double *RESTRICT v,  const size_t sz) ;
+        static void sum(const double *v1, const double *v2, double *v,  const size_t sz) ;
+		static void sub(const double *v1, const double *v2, double *v,  const size_t sz) ;
 
 		// dot = dense_vec[0:sz-1] * spvec_data[spvec_idxs[0:sz-1]];
 		//can handle unalligned data
@@ -75,9 +75,12 @@ namespace asr {
 			const __m128d dvec  = _mm_loadu_pd(&dense_vec[i]); 
 			acc2d = _mm_add_pd(acc2d, _mm_mul_pd(spvec, dvec));
 		}
+#ifdef __SSE3__		
 		acc2d =  _mm_hadd_pd(acc2d,acc2d);
 		double sum = _mm_cvtsd_f64(acc2d);		
-		//double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+#else		
+		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+#endif		
 				
 		for ( ; i < sz; i++) {
 			sum += spvec_data[*pidx++] * dense_vec[i];
@@ -85,34 +88,40 @@ namespace asr {
 		return sum;
 	}
 
-/*
-does not work now
+
+
 	//can handle unalligned data
-	double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
-		const int fourPacks = SSE_FLOAT_PACKED;
-		const size_t tsz = sz - sz % fourPacks;
+	//conversion from float->double  inside
+	inline double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
+		
+		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED - 2;
 		__m128d acc2d = _mm_setzero_pd();
-		alignas(simdsse::allignment_req()) float tmp[fourPacks];
-		size_t idx[SSE_FLOAT_PACKED];
-		for (size_t i(0); i < tsz; i += fourPacks) {
-			//load to tmp
+		size_t idx[SSE_DOUBLE_PACKED];
+		auto pidx = spvec_idxs;
+
+		for (size_t i(0); i < tsz; i += SSE_DOUBLE_PACKED) {
 			idx[0] = *pidx++;
 			idx[1] = *pidx++;
-			idx[2] = *pidx++;
-			idx[3] = *pidx++;
-			__m128d spvec = _mm_set_ps (spvec_data[idx[1]], spvec_data[idx[0]], spvec_data[idx[1]], spvec_data[idx[0]]);			
 
-			const __m128 dvec  = _mm_loadu_ps(&dense_vec[i]); 
-			spvec = _mm_mul_ps(spvec, dvec); 
-			acc2d = _mm_add_pd(acc2d, halfsum_m128(spvec));
+			__m128d spvec = _mm_set_pd (spvec_data[idx[1]], spvec_data[idx[0]]);			
+			
+			const __m128  dvecf  = _mm_loadu_ps(&dense_vec[i]); 
+			const __m128d dvec   = _mm_cvtps_pd(dvecf); 
+			spvec = _mm_mul_pd(spvec, dvec); 
+			acc2d = _mm_add_pd(acc2d, _mm_mul_pd(spvec, dvec));
 		}
-		double sum = sum_m128d(acc2d);
+#ifdef __SSE3__		
+		acc2d =  _mm_hadd_pd(acc2d,acc2d);
+		double sum = _mm_cvtsd_f64(acc2d);		
+#else		
+		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+#endif		
+				
 		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
 			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
 		}
 		return sum;
 	}
-*/
 
 	inline void simdsse::mul_vec(const float *v1, float *v2, const size_t sz) {
 		const size_t tsz = sz - sz % SSE_FLOAT_PACKED;
@@ -155,7 +164,6 @@ does not work now
 			v2 += SSE_DOUBLE_PACKED;
 			__m128d s = _mm_add_pd(v1vec, v2vec);
 			_mm_storeu_pd(v, s);
-
 			v += SSE_DOUBLE_PACKED;
 		}		
 		for ( ; i < sz; i++) *v++ = *v1++ * *v2++;
@@ -178,6 +186,71 @@ does not work now
 			v += SSE_DOUBLE_PACKED;
 		}
 		for (; i < sz; i++) *v++ = *v1++ * *v2++;
+	}
+	
+	//assumed allignment
+	inline double simdsse::dot_vec(const float *RESTRICT v1, 
+								   const float *RESTRICT v2, const size_t sz) {
+		const size_t four = 4 * SSE_FLOAT_PACKED;
+		const size_t tsz = sz - sz % four;
+		
+		__m128d acc2d = _mm_setzero_pd();
+		for (size_t i(0); i < tsz; i += four) {
+			const __m128 v1vec = _mm_loadu_ps(v1);
+			const __m128 v2vec = _mm_loadu_ps(v2);			
+			__m128 sum1 = _mm_mul_ps(v1vec, v2vec);
+			v1 += SSE_FLOAT_PACKED;
+			v2 += SSE_FLOAT_PACKED;
+			__m128 sum2 = _mm_mul_ps(v1vec, v2vec);
+			v1 += SSE_FLOAT_PACKED;
+			v2 += SSE_FLOAT_PACKED;
+			__m128 sum3 = _mm_mul_ps(v1vec, v2vec);
+			v1 += SSE_FLOAT_PACKED;
+			v2 += SSE_FLOAT_PACKED;
+			__m128 sum4 = _mm_mul_ps(v1vec, v2vec);
+			v1 += SSE_FLOAT_PACKED;
+			v2 += SSE_FLOAT_PACKED;
+
+			sum2 = _mm_add_ps(sum1, sum2);
+			sum4 = _mm_add_ps(sum3, sum4);
+			sum4 = _mm_add_ps(sum2, sum4);
+			//we may continue summing of quarks but i am afraid we will loose ortogonality
+			const __m128 t   = _mm_add_ps(sum4, _mm_movehl_ps(sum4, sum4));		
+			acc2d = _mm_add_pd(acc2d, _mm_cvtps_pd(t));
+		}
+#ifdef __SSE3__		
+		acc2d =  _mm_hadd_pd(acc2d,acc2d);
+		double sum = _mm_cvtsd_f64(acc2d);		
+#else		
+		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+#endif	
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
+		return sum;
+	}
+
+	//assumed allignment
+	inline double simdsse::dot_vec(const double *RESTRICT v1, 
+								   const double *RESTRICT v2, const size_t sz) {
+		const int fourPacks = SSE_DOUBLE_PACKED;
+		const size_t tsz = sz - sz % fourPacks;
+		__m128d acc2d = _mm_setzero_pd();
+		for (size_t i(0); i < tsz; i += fourPacks) {
+			const __m128d v1vec = _mm_loadu_pd(v1);
+			const __m128d v2vec = _mm_loadu_pd(v2);			
+			__m128d s = _mm_mul_pd(v1vec, v2vec);
+			v1 += fourPacks;
+			v2 += fourPacks;
+			//we may continue summing of quarks but i am afraid we will loose ortogonality
+			acc2d = _mm_add_pd(acc2d, s);
+		}
+#ifdef __SSE3__		
+		acc2d =  _mm_hadd_pd(acc2d,acc2d);
+		double sum = _mm_cvtsd_f64(acc2d);		
+#else		
+		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
+#endif
+		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
+		return sum;
 	}
 
 };
