@@ -1,0 +1,10 @@
+1. Caching your GitHub password in Git
+
+Turn on the credential helper so that Git will save your password in memory for some time. 
+    git config --global credential.helper 'cache --timeout=36000'
+    # Set the cache to timeout after 10 hours (setting is in seconds)
+
+
+
+2. Unit testing. 
+  PyTest and CTest must be installed
