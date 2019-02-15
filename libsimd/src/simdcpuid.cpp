@@ -27,7 +27,7 @@ namespace asr
 // Uses the __cpuid intrinsic to get information about
 // CPU extended instruction set support.
 
-//#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 
 //wrapper for windows __cpuid
 void cpuid(int *cpuInfo, int function_id)

@@ -15,5 +15,6 @@ add_subdirectory(libsimd/test)
 enable_testing()
 
 add_test(NAME simdtest
-         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/testdir 
-         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/output/bin/simdtest )
+         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testdir 
+         COMMAND ${CMAKE_CURRENT_BINARY_DIR}/output/bin/simdtest )
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/testdir)

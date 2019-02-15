@@ -98,8 +98,8 @@ namespace asr {
 		__m128d acc2d = _mm_setzero_pd();
 		size_t idx[SSE_DOUBLE_PACKED];
 		auto pidx = spvec_idxs;
-
-		for (size_t i(0); i < tsz; i += SSE_DOUBLE_PACKED) {
+		size_t i(0);
+		for (; i < tsz; i += SSE_DOUBLE_PACKED) {
 			idx[0] = *pidx++;
 			idx[1] = *pidx++;
 
@@ -107,7 +107,6 @@ namespace asr {
 			
 			const __m128  dvecf  = _mm_loadu_ps(&dense_vec[i]); 
 			const __m128d dvec   = _mm_cvtps_pd(dvecf); 
-			spvec = _mm_mul_pd(spvec, dvec); 
 			acc2d = _mm_add_pd(acc2d, _mm_mul_pd(spvec, dvec));
 		}
 #ifdef __SSE3__		
@@ -117,15 +116,16 @@ namespace asr {
 		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
 #endif		
 				
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) {
-			sum += spvec_data[spvec_idxs[i]] * dense_vec[i];
+		for (; i < sz; i++) {
+			sum += spvec_data[spvec_idxs[*pidx++]] * dense_vec[i];
 		}
 		return sum;
 	}
 
 	inline void simdsse::mul_vec(const float *v1, float *v2, const size_t sz) {
 		const size_t tsz = sz - sz % SSE_FLOAT_PACKED;
-		for (size_t i(0); i < tsz; i += SSE_FLOAT_PACKED) {
+		size_t i(0);
+		for (; i < tsz; i += SSE_FLOAT_PACKED) {
 	 		__m128 s1 = _mm_loadu_ps(v1);
 			__m128 s2 = _mm_loadu_ps(v2);
 			s2 = _mm_mul_ps(s1, s2);
@@ -133,12 +133,16 @@ namespace asr {
 			v1 += SSE_FLOAT_PACKED;
 			v2 += SSE_FLOAT_PACKED;
 		}
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) v2[i] *= v1[i];
+		for (; i < sz; i++) {
+			*v2 = *v1++ * *v2;
+			v2++;
+		}
 	}
 
 	inline void simdsse::mul_vec(const double *v1, double *v2, const size_t sz) {
 		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED;
-		for (size_t i(0); i < tsz; i += SSE_DOUBLE_PACKED) {
+		size_t i(0);
+		for (; i < tsz; i += SSE_DOUBLE_PACKED) {
 	 		__m128d s1 = _mm_loadu_pd(v1);
 			__m128d s2 = _mm_loadu_pd(v2);
 			s2 = _mm_mul_pd(s1, s2);
@@ -146,7 +150,10 @@ namespace asr {
 			v1 += SSE_DOUBLE_PACKED;
 			v2 += SSE_DOUBLE_PACKED;
 		}
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) v2[i] *= v1[i];
+		for (; i < sz; i++) {
+			*v2 = *v1++ * *v2;
+			v2++;
+		}
 	}
 
 
@@ -166,7 +173,7 @@ namespace asr {
 			_mm_storeu_pd(v, s);
 			v += SSE_DOUBLE_PACKED;
 		}		
-		for ( ; i < sz; i++) *v++ = *v1++ * *v2++;
+		for ( ; i < sz; i++) *v++ = *v1++ + *v2++;
 	}
 
 	//v = v1 - v2
@@ -185,7 +192,7 @@ namespace asr {
 			_mm_storeu_pd(v, s);
 			v += SSE_DOUBLE_PACKED;
 		}
-		for (; i < sz; i++) *v++ = *v1++ * *v2++;
+		for (; i < sz; i++) *v++ = *v1++ - *v2++;
 	}
 	
 	//assumed allignment
@@ -193,9 +200,9 @@ namespace asr {
 								   const float *RESTRICT v2, const size_t sz) {
 		const size_t four = 4 * SSE_FLOAT_PACKED;
 		const size_t tsz = sz - sz % four;
-		
+		size_t i(0);
 		__m128d acc2d = _mm_setzero_pd();
-		for (size_t i(0); i < tsz; i += four) {
+		for ( ; i < tsz; i += four) {
 			const __m128 v1vec = _mm_loadu_ps(v1);
 			const __m128 v2vec = _mm_loadu_ps(v2);			
 			__m128 sum1 = _mm_mul_ps(v1vec, v2vec);
@@ -224,7 +231,7 @@ namespace asr {
 #else		
 		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
 #endif	
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
+		for (; i < sz; i++) sum += *v1++ * *v2++;
 		return sum;
 	}
 
@@ -234,7 +241,8 @@ namespace asr {
 		const int fourPacks = SSE_DOUBLE_PACKED;
 		const size_t tsz = sz - sz % fourPacks;
 		__m128d acc2d = _mm_setzero_pd();
-		for (size_t i(0); i < tsz; i += fourPacks) {
+		size_t i(0);
+		for (; i < tsz; i += fourPacks) {
 			const __m128d v1vec = _mm_loadu_pd(v1);
 			const __m128d v2vec = _mm_loadu_pd(v2);			
 			__m128d s = _mm_mul_pd(v1vec, v2vec);
@@ -249,7 +257,7 @@ namespace asr {
 #else		
 		double sum = ((double*)&acc2d)[0] + ((double*)&acc2d)[1];
 #endif
-		for (size_t i(tsz >= 0 ? tsz : 0); i < sz; i++) sum += v2[i] * v1[i];
+		for (; i < sz; i++) sum += *v1++ * *v2++;
 		return sum;
 	}
 
