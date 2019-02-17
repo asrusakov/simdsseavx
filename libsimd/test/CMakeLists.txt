@@ -5,9 +5,9 @@ include (../../buildutils/CMakeExecutableTemplate.txt)
 set (LIBS  libsimd)
 
 add_executable(simdtest simd_test.cpp) 
-#add_executable(simdruntime simd_runtime.cpp) 
+add_executable(simdruntime simd_runtime.cpp) 
 
 
 target_link_libraries(simdtest ${START_GROUP}  ${LIBS}  ${END_GROUP}  ${EXTERNAL_LIBS} ${EXTERNAL_UNIT_TEST_LIBS}) 
-#target_link_libraries(simdruntime ${START_GROUP}  ${LIBS}  ${END_GROUP}  ${EXTERNAL_LIBS} ${EXTERNAL_UNIT_TEST_LIBS}) 
+target_link_libraries(simdruntime ${START_GROUP}  ${LIBS}  ${END_GROUP}  ${EXTERNAL_LIBS} ${EXTERNAL_UNIT_TEST_LIBS}) 
 
