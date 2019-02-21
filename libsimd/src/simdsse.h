@@ -92,9 +92,8 @@ namespace asr {
 
 	//can handle unalligned data
 	//conversion from float->double  inside
-	inline double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {
-		
-		const size_t tsz = sz - sz % SSE_DOUBLE_PACKED - 2;
+	inline double simdsse::sparse_vec_dense_vector_dot(const float *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz) {		
+		const size_t tsz = (sz > 2) ? sz - sz % SSE_DOUBLE_PACKED - 2 : 0;
 		__m128d acc2d = _mm_setzero_pd();
 		size_t idx[SSE_DOUBLE_PACKED];
 		auto pidx = spvec_idxs;
@@ -117,7 +116,7 @@ namespace asr {
 #endif		
 				
 		for (; i < sz; i++) {
-			sum += spvec_data[spvec_idxs[*pidx++]] * dense_vec[i];
+			sum += spvec_data[*pidx++] * dense_vec[i];
 		}
 		return sum;
 	}
