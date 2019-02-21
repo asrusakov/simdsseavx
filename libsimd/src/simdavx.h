@@ -23,9 +23,12 @@ namespace asr {
 		static double sparse_vec_dense_vector_dot(const double *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz);
 		static double sparse_vec_dense_vector_dot(const float  *dense_vec, const double *spvec_data, const unsigned int *spvec_idxs, size_t sz);
 
+		static double norm(const double *v1,  const size_t sz);
 		static double dot_vec(const double *v1, const double *v2, const size_t sz);
 		static void   sum(const double * v1, const double * v2, double * v, const size_t sz);
 		static void   sub(const double *v1, const double *v2, double * v, const size_t sz);
+		//v = a*v1 + v3
+		static void   axpy(const double alpha, const double *v1, const double *v2, double * v, const size_t sz);
 
 	protected:
 		static const int AVX_WIDTH = 256;
@@ -174,8 +177,37 @@ namespace asr {
 			v += AVX_DOUBLE_PACKED;
 		}
 		_mm256_zeroupper();
-		for ( ; i < sz; i++) *v++ = *v1++ * *v2++;
+		for ( ; i < sz; i++) *v++ = *v1++ + *v2++;
 	}
+
+
+	inline double simdavx::norm(const double *RESTRICT v1, const size_t sz) {
+		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
+		__m256d acc4d = _mm256_setzero_pd();
+		size_t i(0);
+		for (; i < tsz; i += AVX_DOUBLE_PACKED) {
+			//strange but not alligned access to unalligned data does not crash and works fine. why?
+			__m256d v1vec = _mm256_loadu_pd(v1);			
+			v1 += AVX_DOUBLE_PACKED;
+#ifdef __AVX2__
+			//for avx2 should be:
+			// FMA: rowsum += x_ * v_
+			acc4d = _mm256_fmadd_pd(v1vec, v1vec, acc4d);
+#else
+			v1vec = _mm256_mul_pd(v1vec, v1vec);
+			acc4d = _mm256_add_pd(acc4d, v1vec);
+#endif
+		}
+		acc4d = _mm256_hadd_pd(acc4d, acc4d);
+		double sum = ((double*)&acc4d)[0] + ((double*)&acc4d)[2];
+		_mm256_zeroupper();
+		for (; i < sz; i++) {
+			sum += (*v1) * (*v1);
+			v1++;
+		}
+		return sum;
+	}
+	
 
 	//v = v1 + v2
 	//runtime: native sum: 22s, avx sum with storage 14, sum with stream to memory 19
@@ -195,7 +227,30 @@ namespace asr {
 			v += AVX_DOUBLE_PACKED;
 		}
 		_mm256_zeroupper();
-		for (; i < sz; i++) *v++ = *v1++ * *v2++;
+		for (; i < sz; i++) *v++ = *v1++ - *v2++;
 	}
+
+
+	//v = a*v1 + v3
+	void  simdavx::axpy(const double alpha, const double *v1, const double *v2, double * v, const size_t sz){
+		const size_t tsz = sz - sz % AVX_DOUBLE_PACKED;
+		size_t i(0);
+		const __m256d  packedalpha = _mm256_set1_pd(alpha);
+		for (; i < tsz; i += AVX_DOUBLE_PACKED) {
+			//strange but not alligned access to unalligned data does not crash and works fine. why?
+			const __m256d v1vec = _mm256_mul_pd(_mm256_loadu_pd(v1), packedalpha);
+			const __m256d v2vec = _mm256_loadu_pd(v2);
+			v1 += AVX_DOUBLE_PACKED;
+			v2 += AVX_DOUBLE_PACKED;
+			__m256d s = _mm256_add_pd(v1vec, v2vec);
+			_mm256_storeu_pd(v, s);
+			//			_mm256_stream_pd(v, s);
+			v += AVX_DOUBLE_PACKED;
+		}
+		_mm256_zeroupper();
+		for (; i < sz; i++) *v++ = (alpha * (*v1++) )+ (*v2++);
+
+	}
+
 }
 #endif
