@@ -13,7 +13,19 @@ set (CMAKE_VERBOSE_MAKEFILE ON)
 ##########################################################
 # detect release and debug configuration
 option (DEBUG "debug mode of the build" ON) 
-#message (STATUS " debug mode is ${DEBUG} ")
+#if ( DEBUG )
+#  set (CMAKE_BUILD_TYPE RELEASE)
+#else()    
+#  set (CMAKE_BUILD_TYPE DEBUG)
+#endif()
+
+if ( CMAKE_BUILD_TYPE STREQUAL "Release")
+  set (DEBUG OFF)
+else()    
+  set (DEBUG ON)
+endif()
+message (STATUS " debug mode is ${DEBUG} ")
+
 
 ##########################################################
 #access to boost
@@ -33,9 +45,10 @@ set (Boost_LIBRARY_SUFFIX ".a")
 
 if ( WIN32 ) 
   set (Boost_LIBRARY_DIRS ${BOOST_ROOT}/stage/win)
-#  set (Boost_LIBRARY_SUFFIX "-vc140-mt-1_62.lib")
-  set (Boost_LIBRARY_SUFFIX "-vc120-mt-1_62.lib")
+  set (Boost_LIBRARY_SUFFIX "-vc140-mt-1_62.lib")
+#  set (Boost_LIBRARY_SUFFIX "-vc120-mt-1_62.lib")
   if (DEBUG)
+    set (Boost_LIBRARY_SUFFIX "-vc120-mt-gd-1_62.lib")
     set (Boost_LIBRARY_SUFFIX "-vc120-mt-gd-1_62.lib")
   endif()
 endif()
@@ -102,14 +115,15 @@ set(LIBRARY_OUTPUT_PATH ${outdir}/lib)
 set(CMAKE_BUILD_FILES_DIRECTORY ${outdir}/build})
 set(CMAKE_BUILD_DIRECTORY ${outdir}/build)
 
+
 ##########################################################
 #compilation flags
 if ( UNIX )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -m64 -Wall -g -Wno-unknown-pragmas -fPIC -Wno-deprecated-declarations")
   if ( DEBUG ) 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -Wall -g -Wno-unknown-pragmas -O0 -fPIC -Wno-deprecated-declarations -march=native")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 ")
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64  -Wall -Wno-unknown-pragmas -O3 -march=native -fPIC -Wno-deprecated-declarations -g")
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64  -Wall -Wno-unknown-pragmas -O3 -msse -mavx -fPIC -Wno-deprecated-declarations -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fno-omit-frame-pointer")
     option(STRIP "force unstriped release version" ON) 
     if ( STRIP ) 
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s ")
@@ -118,6 +132,7 @@ if ( UNIX )
     endif()  
   endif()  
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#  message (STATUS "CMAKE_CXX_FLAGS   ${CMAKE_CXX_FLAGS} ")
 elseif ( WIN32 ) 
   if ( DEBUG ) 
   else()

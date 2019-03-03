@@ -9,5 +9,4 @@ endforeach()
 #message("t ${TARGET}")
 
 ADD_LIBRARY(${TARGET} ${SRC})
-
-
+set_target_properties(${TARGET} PROPERTIES LINKER_LANGUAGE CXX)
